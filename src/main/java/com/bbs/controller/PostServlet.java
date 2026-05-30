@@ -99,7 +99,7 @@ public class PostServlet extends HttpServlet {
 
         // 2. 查询帖子
         String postSql = "SELECT p.id, p.title, p.content, p.image_url, p.ai_summary, p.is_top, p.is_elite, " +
-                         "p.view_count, p.user_id, p.category_id, p.created_at, p.updated_at, " +
+                         "p.keywords, p.view_count, p.user_id, p.category_id, p.created_at, p.updated_at, " +
                          "u.username AS author_name, c.name AS category_name " +
                          "FROM posts p " +
                          "JOIN users u ON p.user_id = u.id " +
@@ -117,6 +117,7 @@ public class PostServlet extends HttpServlet {
                     post.put("content", rs.getString("content"));
                     post.put("imageUrl", rs.getString("image_url") == null ? "" : rs.getString("image_url"));
                     post.put("aiSummary", rs.getString("ai_summary") == null ? "" : rs.getString("ai_summary"));
+                    post.put("keywords", rs.getString("keywords") == null ? "" : rs.getString("keywords"));
                     post.put("isTop", rs.getInt("is_top"));
                     post.put("isElite", rs.getInt("is_elite"));
                     post.put("viewCount", rs.getInt("view_count"));
@@ -166,7 +167,62 @@ public class PostServlet extends HttpServlet {
         request.setAttribute("replyList", replyList);
         request.setAttribute("replyCount", replyList.size());
 
+        // 4. 查询相关帖子（同板块或同关键词）
+        loadRelatedPosts(request, postId, (int) post.get("categoryId"), (String) post.get("keywords"));
+
         request.getRequestDispatcher("/post/detail.jsp").forward(request, response);
+    }
+
+    /** 查询相关帖子 */
+    private void loadRelatedPosts(HttpServletRequest request, int postId, int categoryId, String keywords) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+            "SELECT p.id, p.title, p.view_count, p.created_at, u.username AS author_name " +
+            "FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id != ? AND (");
+
+        // 关键词匹配
+        if (keywords != null && !keywords.trim().isEmpty()) {
+            String[] kws = keywords.split("[,，]");
+            for (int i = 0; i < kws.length; i++) {
+                if (i > 0) sql.append(" OR ");
+                sql.append("p.keywords LIKE ?");
+            }
+            sql.append(" OR ");
+        }
+
+        // 同板块兜底
+        sql.append("p.category_id = ?) ORDER BY p.view_count DESC LIMIT 5");
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setInt(idx++, postId);
+
+            if (keywords != null && !keywords.trim().isEmpty()) {
+                String[] kws = keywords.split("[,，]");
+                for (String kw : kws) {
+                    ps.setString(idx++, "%" + kw.trim() + "%");
+                }
+            }
+
+            ps.setInt(idx, categoryId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> post = new HashMap<>();
+                    post.put("id", rs.getInt("id"));
+                    post.put("title", rs.getString("title"));
+                    post.put("viewCount", rs.getInt("view_count"));
+                    post.put("createdAt", rs.getTimestamp("created_at").toString());
+                    post.put("authorName", rs.getString("author_name"));
+                    list.add(post);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        request.setAttribute("relatedPosts", list);
     }
 
     /** 处理发帖（需登录，支持本地上传封面图） */
@@ -182,6 +238,7 @@ public class PostServlet extends HttpServlet {
         String title = request.getParameter("title");
         String content = request.getParameter("content");
         String categoryIdStr = request.getParameter("categoryId");
+        String keywords = request.getParameter("keywords");
 
         // 校验
         if (title == null || title.trim().isEmpty() || content == null || content.trim().isEmpty()) {
@@ -205,14 +262,15 @@ public class PostServlet extends HttpServlet {
             categoryId = 1;
         }
 
-        String sql = "INSERT INTO posts (title, content, image_url, user_id, category_id) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO posts (title, content, image_url, keywords, user_id, category_id) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, title.trim());
             ps.setString(2, content.trim());
             ps.setString(3, imageUrl);
-            ps.setInt(4, userId);
-            ps.setInt(5, categoryId);
+            ps.setString(4, keywords == null ? "" : keywords.trim());
+            ps.setInt(5, userId);
+            ps.setInt(6, categoryId);
             ps.executeUpdate();
 
             try (ResultSet rs = ps.getGeneratedKeys()) {
@@ -345,6 +403,7 @@ public class PostServlet extends HttpServlet {
         String title = request.getParameter("title");
         String content = request.getParameter("content");
         String categoryIdStr = request.getParameter("categoryId");
+        String keywords = request.getParameter("keywords");
 
         if (title == null || title.trim().isEmpty() || content == null || content.trim().isEmpty()) {
             request.setAttribute("error", "标题和内容不能为空");
@@ -384,14 +443,15 @@ public class PostServlet extends HttpServlet {
             e.printStackTrace();
         }
 
-        String sql = "UPDATE posts SET title=?, content=?, image_url=?, category_id=? WHERE id=?";
+        String sql = "UPDATE posts SET title=?, content=?, image_url=?, keywords=?, category_id=? WHERE id=?";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, title.trim());
             ps.setString(2, content.trim());
             ps.setString(3, imageUrl);
-            ps.setInt(4, categoryId);
-            ps.setInt(5, postId);
+            ps.setString(4, keywords == null ? "" : keywords.trim());
+            ps.setInt(5, categoryId);
+            ps.setInt(6, postId);
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();

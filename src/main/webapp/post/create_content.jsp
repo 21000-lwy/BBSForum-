@@ -38,6 +38,12 @@
             <input type="text" name="title" value="${param.title}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200" placeholder="请输入帖子标题（最多100字）" maxlength="100" required>
         </div>
 
+        <!-- 关键词 -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">关键词（可选，逗号分隔）</label>
+            <input type="text" name="keywords" value="${param.keywords}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200" placeholder="如：Java, Spring Boot, 教程" maxlength="200">
+        </div>
+
         <!-- 内容 -->
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1.5">内容 *</label>

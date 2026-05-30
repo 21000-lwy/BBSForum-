@@ -11,27 +11,31 @@
     <span class="text-gray-700">帖子详情</span>
 </div>
 
+<div class="flex gap-5">
+<!-- ========== 左侧主体 ========== -->
+<div class="flex-1 min-w-0">
+
 <!-- 帖子主体 -->
 <article class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-6">
-    <!-- 封面图：大图展示 -->
     <c:if test="${not empty post.imageUrl}">
         <div class="w-full bg-gray-100">
             <img src="${post.imageUrl}" alt="${post.title}" class="w-full max-h-80 object-cover" onerror="this.parentElement.style.display='none'">
         </div>
     </c:if>
-
     <div class="p-6">
-        <!-- 标签 -->
         <div class="mb-3">
             <c:if test="${post.isTop == 2}"><span class="inline-block px-2 py-0.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded mr-2">全局置顶</span></c:if>
             <c:if test="${post.isTop == 1}"><span class="inline-block px-2 py-0.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded mr-2">置顶</span></c:if>
             <c:if test="${post.isElite == 1}"><span class="inline-block px-2 py-0.5 text-xs font-medium text-pink-600 bg-pink-50 border border-pink-200 rounded">精华</span></c:if>
         </div>
-
-        <!-- 标题 -->
         <h1 class="text-2xl font-bold text-gray-900 mb-4 leading-snug">${post.title}</h1>
-
-        <!-- 元信息 -->
+        <c:if test="${not empty post.keywords}">
+            <div class="flex items-center gap-1.5 flex-wrap mb-4">
+                <c:forTokens var="kw" items="${post.keywords}" delims=",，">
+                    <span class="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-500 border border-gray-200 rounded-full">${kw}</span>
+                </c:forTokens>
+            </div>
+        </c:if>
         <div class="flex items-center gap-5 text-sm text-gray-400 pb-5 border-b border-gray-100 flex-wrap">
             <span class="flex items-center gap-1.5">
                 <span class="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">${fn:substring(post.authorName, 0, 1)}</span>
@@ -40,8 +44,6 @@
             <span><i class="fa fa-clock-o mr-1"></i> ${post.createdAt}</span>
             <span><i class="fa fa-eye mr-1"></i> ${post.viewCount} 次浏览</span>
         </div>
-
-        <!-- AI总结区域 -->
         <div id="aiSummaryBox" class="mb-5 <c:if test='${empty post.aiSummary}'>hidden</c:if>">
             <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
                 <span class="text-lg mt-0.5">🤖</span>
@@ -51,13 +53,9 @@
                 </div>
             </div>
         </div>
-
-        <!-- 正文（渲染后的HTML，支持内联图片） -->
         <div class="py-6 text-gray-800 leading-relaxed text-[15px] post-content">
             ${post.contentRendered}
         </div>
-
-        <!-- 操作按钮 -->
         <div class="flex items-center gap-2 pt-4 border-t border-gray-100 flex-wrap">
             <button onclick="history.back()" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-500 bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 transition cursor-pointer">
                 <i class="fa fa-arrow-left"></i> 返回
@@ -77,23 +75,15 @@
             </c:if>
             <c:if test="${sessionScope.user.role == 'admin'}">
                 <c:if test="${post.isTop == 0}">
-                    <a href="${pageContext.request.contextPath}/admin/post/top?id=${post.id}&level=1" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100 no-underline transition">
-                        <i class="fa fa-arrow-up"></i> 板块置顶
-                    </a>
-                    <a href="${pageContext.request.contextPath}/admin/post/top?id=${post.id}&level=2" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100 no-underline transition">
-                        <i class="fa fa-arrow-up"></i> 全局置顶
-                    </a>
+                    <a href="${pageContext.request.contextPath}/admin/post/top?id=${post.id}&level=1" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100 no-underline transition"><i class="fa fa-arrow-up"></i> 板块置顶</a>
+                    <a href="${pageContext.request.contextPath}/admin/post/top?id=${post.id}&level=2" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100 no-underline transition"><i class="fa fa-arrow-up"></i> 全局置顶</a>
                 </c:if>
                 <c:choose>
                     <c:when test="${post.isElite == 0}">
-                        <a href="${pageContext.request.contextPath}/admin/post/elite?id=${post.id}&action=add" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-pink-600 bg-pink-50 border border-pink-200 rounded hover:bg-pink-100 no-underline transition">
-                            <i class="fa fa-diamond"></i> 加精
-                        </a>
+                        <a href="${pageContext.request.contextPath}/admin/post/elite?id=${post.id}&action=add" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-pink-600 bg-pink-50 border border-pink-200 rounded hover:bg-pink-100 no-underline transition"><i class="fa fa-diamond"></i> 加精</a>
                     </c:when>
                     <c:otherwise>
-                        <a href="${pageContext.request.contextPath}/admin/post/elite?id=${post.id}&action=remove" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-pink-600 bg-pink-50 border border-pink-200 rounded hover:bg-pink-100 no-underline transition">
-                            <i class="fa fa-diamond"></i> 取消加精
-                        </a>
+                        <a href="${pageContext.request.contextPath}/admin/post/elite?id=${post.id}&action=remove" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-pink-600 bg-pink-50 border border-pink-200 rounded hover:bg-pink-100 no-underline transition"><i class="fa fa-diamond"></i> 取消加精</a>
                     </c:otherwise>
                 </c:choose>
             </c:if>
@@ -106,7 +96,6 @@
     <h3 class="text-lg font-semibold text-gray-900 mb-4">
         <i class="fa fa-comments mr-1"></i> 回复（${replyCount}）
     </h3>
-
     <c:choose>
         <c:when test="${empty replyList}">
             <div class="text-center py-12 bg-white rounded-lg border border-gray-100 text-gray-400">
@@ -132,17 +121,14 @@
     </c:choose>
 </section>
 
-<!-- 回复表单（仅登录用户可见） -->
+<!-- 回复表单 -->
 <c:choose>
     <c:when test="${not empty sessionScope.user}">
         <section class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <h3 class="text-base font-semibold text-gray-900 mb-4">
-                <i class="fa fa-reply mr-1"></i> 发表回复
-            </h3>
+            <h3 class="text-base font-semibold text-gray-900 mb-4"><i class="fa fa-reply mr-1"></i> 发表回复</h3>
             <form action="${pageContext.request.contextPath}/post/reply" method="post">
                 <input type="hidden" name="postId" value="${post.id}">
-                <textarea name="content" rows="4" placeholder="写下你的回复..."
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 resize-none mb-4" required></textarea>
+                <textarea name="content" rows="4" placeholder="写下你的回复..." class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 resize-none mb-4" required></textarea>
                 <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 transition cursor-pointer border-none">
                     <i class="fa fa-send"></i> 提交回复
                 </button>
@@ -159,22 +145,45 @@
     </c:otherwise>
 </c:choose>
 
+</div><!-- /左侧主体 -->
+
+<!-- ========== 右侧相关推荐 ========== -->
+<c:if test="${not empty relatedPosts}">
+<aside class="w-64 shrink-0 hidden lg:block">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden sticky top-[72px]">
+        <div class="px-4 py-3 border-b border-gray-100">
+            <h3 class="text-sm font-semibold text-gray-900"><i class="fa fa-lightbulb-o mr-1 text-yellow-500"></i> 相关推荐</h3>
+        </div>
+        <div class="divide-y divide-gray-50">
+            <c:forEach var="rp" items="${relatedPosts}">
+                <a href="${pageContext.request.contextPath}/post/detail?id=${rp.id}" class="block px-4 py-3 hover:bg-blue-50 transition no-underline">
+                    <p class="text-sm text-gray-700 leading-snug line-clamp-2 mb-1.5">${rp.title}</p>
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        <span>${rp.authorName}</span>
+                        <span><i class="fa fa-eye"></i> ${rp.viewCount}</span>
+                    </div>
+                </a>
+            </c:forEach>
+        </div>
+    </div>
+</aside>
+</c:if>
+
+</div><!-- /flex -->
+
 <script>
 function generateAiSummary(postId) {
     var btn = document.getElementById('aiBtn');
     var btnText = document.getElementById('aiBtnText');
     var box = document.getElementById('aiSummaryBox');
     var text = document.getElementById('aiSummaryText');
-
     btn.disabled = true;
     btnText.textContent = '生成中...';
-
     fetch('${pageContext.request.contextPath}/post/aiSummary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'id=' + postId
-    })
-    .then(function(r) { return r.json(); })
+    }).then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.summary) {
             text.textContent = data.summary;
@@ -188,8 +197,7 @@ function generateAiSummary(postId) {
         }
         btnText.textContent = 'AI总结';
         btn.disabled = false;
-    })
-    .catch(function() {
+    }).catch(function() {
         text.textContent = '网络错误，请重试';
         text.style.color = '#ef4444';
         box.classList.remove('hidden');
