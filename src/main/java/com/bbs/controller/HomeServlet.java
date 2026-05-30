@@ -62,7 +62,7 @@ public class HomeServlet extends HttpServlet {
     /** 加载帖子列表 */
     private void loadPosts(HttpServletRequest request) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT p.id, p.title, p.content, p.image_url, " +
+        String sql = "SELECT p.id, p.title, p.content, p.image_url, p.ai_summary, " +
                      "p.is_top, p.is_elite, p.view_count, p.created_at, " +
                      "u.username AS author_name, c.name AS category_name " +
                      "FROM posts p " +
@@ -86,6 +86,7 @@ public class HomeServlet extends HttpServlet {
                 post.put("authorName", rs.getString("author_name"));
                 post.put("categoryName", rs.getString("category_name"));
                 post.put("imageUrl", rs.getString("image_url") == null ? "" : rs.getString("image_url"));
+                post.put("aiSummary", rs.getString("ai_summary") == null ? "" : rs.getString("ai_summary"));
                 list.add(post);
             }
         } catch (SQLException e) {

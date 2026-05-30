@@ -1,5 +1,6 @@
 package com.bbs.controller;
 
+import com.bbs.util.AiUtil;
 import com.bbs.util.ContentUtil;
 import com.bbs.util.DBUtil;
 import jakarta.servlet.ServletException;
@@ -25,7 +26,7 @@ import java.util.UUID;
  * 帖子控制器
  * 负责：查看帖子详情、发布帖子、回复帖子（支持本地上传封面图）
  */
-@WebServlet(name = "post", urlPatterns = {"/post/create", "/post/detail", "/post/reply", "/post/edit", "/post/delete", "/post/uploadImage"})
+@WebServlet(name = "post", urlPatterns = {"/post/create", "/post/detail", "/post/reply", "/post/edit", "/post/delete", "/post/uploadImage", "/post/aiSummary"})
 @MultipartConfig(maxFileSize = 5 * 1024 * 1024, location = "")  // 最大5MB
 public class PostServlet extends HttpServlet {
 
@@ -58,6 +59,8 @@ public class PostServlet extends HttpServlet {
             handleEditPost(request, response);
         } else if ("/post/uploadImage".equals(path)) {
             handleInlineImageUpload(request, response);
+        } else if ("/post/aiSummary".equals(path)) {
+            handleAiSummary(request, response);
         }
     }
 
@@ -95,7 +98,7 @@ public class PostServlet extends HttpServlet {
         }
 
         // 2. 查询帖子
-        String postSql = "SELECT p.id, p.title, p.content, p.image_url, p.is_top, p.is_elite, " +
+        String postSql = "SELECT p.id, p.title, p.content, p.image_url, p.ai_summary, p.is_top, p.is_elite, " +
                          "p.view_count, p.user_id, p.category_id, p.created_at, p.updated_at, " +
                          "u.username AS author_name, c.name AS category_name " +
                          "FROM posts p " +
@@ -113,6 +116,7 @@ public class PostServlet extends HttpServlet {
                     post.put("title", rs.getString("title"));
                     post.put("content", rs.getString("content"));
                     post.put("imageUrl", rs.getString("image_url") == null ? "" : rs.getString("image_url"));
+                    post.put("aiSummary", rs.getString("ai_summary") == null ? "" : rs.getString("ai_summary"));
                     post.put("isTop", rs.getInt("is_top"));
                     post.put("isElite", rs.getInt("is_elite"));
                     post.put("viewCount", rs.getInt("view_count"));
@@ -446,6 +450,66 @@ public class PostServlet extends HttpServlet {
         response.sendRedirect(request.getContextPath() + "/");
     }
 
+    /**  生成AI总结（需登录），返回JSON */
+    private void handleAiSummary(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        HttpSession session = request.getSession();
+        if (session.getAttribute("user") == null) {
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"请先登录\"}");
+            return;
+        }
+
+        int postId;
+        try {
+            postId = Integer.parseInt(request.getParameter("id"));
+        } catch (NumberFormatException e) {
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"参数错误\"}");
+            return;
+        }
+
+        // 查帖子标题和内容
+        String sql = "SELECT title, content FROM posts WHERE id = ?";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, postId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String title = rs.getString("title");
+                    String content = rs.getString("content");
+
+                    // 调用AI生成总结
+                    String summary = AiUtil.generateSummary(title, content);
+
+                    if (summary != null) {
+                        // 存入数据库
+                        String updateSql = "UPDATE posts SET ai_summary = ? WHERE id = ?";
+                        try (Connection conn2 = DBUtil.getConnection();
+                             PreparedStatement ps2 = conn2.prepareStatement(updateSql)) {
+                            ps2.setString(1, summary);
+                            ps2.setInt(2, postId);
+                            ps2.executeUpdate();
+                        }
+
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"summary\":\"" + escapeJson(summary) + "\"}");
+                    } else {
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"error\":\"AI接口调用失败，请重试\"}");
+                    }
+                } else {
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\":\"帖子不存在\"}");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"服务器错误\"}");
+        }
+    }
+
     /** 处理内联图片上传，返回 Markdown 图片语法文本 */
     private void handleInlineImageUpload(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -466,6 +530,11 @@ public class PostServlet extends HttpServlet {
         // 返回 Markdown 图片语法，前端直接插入文本框
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write("{\"markdown\":\"![图片](" + url + ")\",\"url\":\"" + url + "\"}");
+    }
+
+    /** JSON字符串转义 */
+    private String escapeJson(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
     }
 
     /**

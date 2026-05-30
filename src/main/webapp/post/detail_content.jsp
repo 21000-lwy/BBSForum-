@@ -41,6 +41,17 @@
             <span><i class="fa fa-eye mr-1"></i> ${post.viewCount} 次浏览</span>
         </div>
 
+        <!-- AI总结区域 -->
+        <div id="aiSummaryBox" class="mb-5 <c:if test='${empty post.aiSummary}'>hidden</c:if>">
+            <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
+                <span class="text-lg mt-0.5">🤖</span>
+                <div>
+                    <span class="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">AI 总结</span>
+                    <p id="aiSummaryText" class="text-sm text-gray-700 mt-1.5 leading-relaxed">${post.aiSummary}</p>
+                </div>
+            </div>
+        </div>
+
         <!-- 正文（渲染后的HTML，支持内联图片） -->
         <div class="py-6 text-gray-800 leading-relaxed text-[15px] post-content">
             ${post.contentRendered}
@@ -51,6 +62,11 @@
             <button onclick="history.back()" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-500 bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 transition cursor-pointer">
                 <i class="fa fa-arrow-left"></i> 返回
             </button>
+            <c:if test="${not empty sessionScope.user}">
+                <button id="aiBtn" onclick="generateAiSummary(${post.id})" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100 transition cursor-pointer">
+                    <i class="fa fa-magic"></i> <span id="aiBtnText">AI总结</span>
+                </button>
+            </c:if>
             <c:if test="${sessionScope.user.id == post.userId || sessionScope.user.role == 'admin'}">
                 <a href="${pageContext.request.contextPath}/post/edit?id=${post.id}" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 no-underline transition">
                     <i class="fa fa-edit"></i> 编辑
@@ -142,3 +158,43 @@
         </div>
     </c:otherwise>
 </c:choose>
+
+<script>
+function generateAiSummary(postId) {
+    var btn = document.getElementById('aiBtn');
+    var btnText = document.getElementById('aiBtnText');
+    var box = document.getElementById('aiSummaryBox');
+    var text = document.getElementById('aiSummaryText');
+
+    btn.disabled = true;
+    btnText.textContent = '生成中...';
+
+    fetch('${pageContext.request.contextPath}/post/aiSummary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'id=' + postId
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.summary) {
+            text.textContent = data.summary;
+            text.style.color = '';
+            box.classList.remove('hidden');
+        } else {
+            text.textContent = data.error || '生成失败';
+            text.style.color = '#ef4444';
+            box.classList.remove('hidden');
+            setTimeout(function() { box.classList.add('hidden'); text.style.color = ''; }, 3000);
+        }
+        btnText.textContent = 'AI总结';
+        btn.disabled = false;
+    })
+    .catch(function() {
+        text.textContent = '网络错误，请重试';
+        text.style.color = '#ef4444';
+        box.classList.remove('hidden');
+        btnText.textContent = 'AI总结';
+        btn.disabled = false;
+    });
+}
+</script>
