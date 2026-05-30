@@ -61,6 +61,13 @@
                                 <c:if test="${not empty post.aiSummary}"><span class="text-purple-500 mr-1">🤖</span></c:if>
                                 ${post.summary}
                             </p>
+                            <c:if test="${not empty post.keywords}">
+                                <div class="flex items-center gap-1 flex-wrap mb-2">
+                                    <c:forTokens var="kw" items="${post.keywords}" delims=",，" begin="0" end="2">
+                                        <span class="inline-block px-1.5 py-px text-[11px] bg-gray-100 text-gray-400 border border-gray-200 rounded">${kw}</span>
+                                    </c:forTokens>
+                                </div>
+                            </c:if>
                         </div>
                         <div class="flex items-center gap-4 text-xs text-gray-400 flex-wrap">
                             <span class="flex items-center gap-1">
